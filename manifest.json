@@ -1,0 +1,21 @@
+{
+	"name": "DnWykopPlus",
+	"version": "0.1",
+	"manifest_version": 2,
+	"description": "Dodatki do Wykopu",
+	"content_scripts": [
+		{
+			"matches": [
+				"http://www.wykop.pl/",
+				"http://www.wykop.pl/strona/*",
+				"http://www.wykop.pl/aktywne/",
+				"http://www.wykop.pl/aktywne/strona/*",
+				"http://www.wykop.pl/najnowsze/",
+				"http://www.wykop.pl/najnowsze/strona/*",
+				"http://www.wykop.pl/wykopalisko/*"
+			],
+			"css": ["style.css"],
+			"js": ["jquery-1.8.3.min.js", "script.js"]
+		}
+	]
+}

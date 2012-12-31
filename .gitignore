@@ -1,0 +1,12 @@
+# temporary and/or OS specific garbage
+.DS_Store
+*.swp
+*.bak
+
+
+# NetBeans project
+/nbproject
+
+
+# most likely contains files from Composer
+/vendor
