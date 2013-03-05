@@ -9,11 +9,11 @@
 	float: right;
 	margin-right: 10px;
 }
-.dnwp_hide_article {
+.dnwpShowHideArticle {
     margin-left: 10px;
 	font-size: 10px;
 	color: darkBlue;
 }
-.nightmode .dnwp_hide_article {
+.nightmode .dnwpShowHideArticle {
 	color: grey;
 }
