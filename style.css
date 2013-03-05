@@ -1,19 +1,15 @@
-.dnwp_buttom_button {
+.dnwpButtomButton {
 	font-size: 9px;
 	margin-right: 10px;
 }
-.dnwp_buttom_button.dnwp_hide_all {
+.dnwpButtomButton.dnwpHideAll {
     font-weight: bold;
 }
-.dnwp_hide_all_articles.top {
-	float: right;
-	margin-right: 10px;
-}
-.dnwpShowHideArticle {
+.dnwpShowHideItem {
     margin-left: 10px;
 	font-size: 10px;
 	color: darkBlue;
 }
-.nightmode .dnwpShowHideArticle {
+.nightmode .dnwpShowHideItem {
 	color: grey;
 }

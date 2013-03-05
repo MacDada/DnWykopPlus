@@ -16,13 +16,13 @@
     }, settings);
 
 
-    // do dokumentu dorzucam funkcję inicjalizującą przeładowywanie obrazków
+    // do dokumentu dorzucam funkcję inicjalizującą przeładowywanie miniaturek
     (function() {
         var initLazy = function($, window) {
             var $window = $(window);
             var $lazy = $('div.lazy');
 
-            window.dnwpReloadLazy = function() {
+            window.dnwpLoadLazy = function() {
                 $lazy.lazyLoad();
                 $window.trigger('scroll');
             };
@@ -33,15 +33,15 @@
         window.document.body.appendChild(script);
     })();
 
-    // funkcja przeładowująca obrazki
+    // funkcja przeładowująca miniaturki do artykułów
     var lazyLoad = function() {
         var script = window.document.createElement("script");
-        script.text = "dnwpReloadLazy();";
+        script.text = "dnwpLoadLazy();";
         window.document.body.appendChild(script);
     };
 
 
-    var view = {
+    var itemsViewFunctions = {
         hideOne: function($el) {
             if (0 === settings.hiddenOpacity) {
                 $el.slideUp();
@@ -61,7 +61,6 @@
                 lazyLoad();
             } else {
                 $el.fadeTo('fast', settings.hiddenOpacity);
-                $el.find()
             }
 
             $el.addClass('dnwpHidden');
@@ -81,29 +80,29 @@
      * Klucze zaczynają się prefixem, żeby uniknąć kolizji oraz ułatwić wyszukiwanie.
      * W kluczu trzymane jest ID znaleziska, w wartości data ukrycia.
      */
-    var hiddenIds = (function(storage) {
-        var prefix = "dnwpHiddenArticle_";
+    var hiddenItemsStorage = (function(storage) {
+        var prefix = "dnwpHiddenItem_";
 
-        var hiddenItems = {
+        var hiddenItemsStorage = {
             has: function(id) {
                 return storage[prefix + id] ? true : false;
             },
             add: function(id) {
                 if (!this.has(id)) {
-                    storage["dnwpHiddenArticlesCount"]++;
+                    storage["dnwpHiddenItemsCount"]++;
                 }
                 storage[prefix + id] = (new Date()).toJSON();
             },
             remove: function(id) {
                 if (this.has(id)) {
                     storage.removeItem(prefix + id);
-                    storage["dnwpHiddenArticlesCount"]--;
+                    storage["dnwpHiddenItemsCount"]--;
                 }
             },
             removeOlderThan: function(date) {
                 console.log('dnwp removeOlderThan', date);
 
-                var beforeCount = storage["dnwpHiddenArticlesCount"];
+                var beforeCount = storage["dnwpHiddenItemsCount"];
 
                 // deleting all storage items that are older then "date" arg.
                 // takes only dnwp keys into account (filters thx to the prefix)
@@ -114,55 +113,55 @@
                         console.log("dnwp removing ", key);
 
                         storage.removeItem(key);
-                        storage["dnwpHiddenArticlesCount"]--;
+                        storage["dnwpHiddenItemsCount"]--;
                     }
                 }
 
-                return beforeCount - storage["dnwpHiddenArticlesCount"];
+                return beforeCount - storage["dnwpHiddenItemsCount"];
             },
             count: function() {
-                return window.parseInt(storage["dnwpHiddenArticlesCount"]);
+                return window.parseInt(storage["dnwpHiddenItemsCount"]);
             }
         }
 
         // gc: automatically delete when more than: days * 10 pages * 54 articles per page
-        if (!storage["dnwpHiddenArticlesCount"]) {
-            storage["dnwpHiddenArticlesCount"] = 0;
-        } else if (storage["dnwpHiddenArticlesCount"] > settings.gcDays * 540) {
-            console.log('dnwp gc: removed ' + hiddenItems.removeOlderThan((function() {
+        if (!storage["dnwpHiddenItemsCount"]) {
+            storage["dnwpHiddenItemsCount"] = 0;
+        } else if (storage["dnwpHiddenItemsCount"] > settings.gcDays * 540) {
+            console.log('dnwp gc: removed ' + hiddenItemsStorage.removeOlderThan((function() {
                 var date = new Date();
                 date.setDate(date.getDate() - settings.gcDays);
                 return date;
             })()) + 'items');
         }
 
-        return hiddenItems;
+        return hiddenItemsStorage;
     }(window.localStorage));
 
 
     /**
      * Wyszukuję znaleziska
      */
-    var $articles = $("article.entry[data-id]");
+    var $items = $("article.entry[data-id]");
 
 
     /**
      * Tworzę przyciski ukrywania artykułu
      */
-    $('<a href="#" class="dnwpShowHideArticle">ukryj</a>')
-        .insertAfter("header h2 a.link", $articles)
+    $('<a href="#" class="dnwpShowHideItem">ukryj</a>')
+        .insertAfter("header h2 a.link", $items)
         .click(function(e) {
             e.preventDefault();
             var $this = $(this);
-            var $article = $this.parents('article.entry');
+            var $item = $this.parents('article.entry');
 
             if ($this.hasClass('show')) {
-                view.showOne($article);
-                hiddenIds.remove($article.attr('data-id'));
+                itemsViewFunctions.showOne($item);
+                hiddenItemsStorage.remove($item.attr('data-id'));
                 $this.removeClass('show');
             } else {
-                view.hideOne($article);
-                hiddenIds.add($article.attr('data-id'));
+                itemsViewFunctions.hideOne($item);
+                hiddenItemsStorage.add($item.attr('data-id'));
                 $this.addClass('show');
             }
         });
@@ -172,30 +171,30 @@
      */
     var $pager = $('.pager');
 
-    var $showAll = $('<a href="#" class="dnwp_buttom_button">pokaż wszystkie</a>')
+    var $showAll = $('<a href="#" class="dnwpButtomButton">pokaż wszystkie</a>')
         .click(function(e) {
             e.preventDefault();
 
-            view.showMany($articles);
+            itemsViewFunctions.showMany($items);
 
-            $articles.each(function() {
-                hiddenIds.remove($(this).attr('data-id'));
+            $items.each(function() {
+                hiddenItemsStorage.remove($(this).attr('data-id'));
             });
         })
         .insertBefore($pager);
 
-    var $hideAll = $('<a href="#" class="dnwp_buttom_button dnwp_hide_all">ukryj wszystkie</a>')
+    var $hideAll = $('<a href="#" class="dnwpButtomButton dnwpHideAll">ukryj wszystkie</a>')
         .click(function(e) {
             e.preventDefault();
 
-            view.hideMany($articles);
+            itemsViewFunctions.hideMany($items);
 
             if (0 === settings.hiddenOpacity) {
                 window.scrollTo(0, 0);
             }
 
-            $articles.each(function() {
-                hiddenIds.add($(this).attr('data-id'));
+            $items.each(function() {
+                hiddenItemsStorage.add($(this).attr('data-id'));
             });
         })
         .insertBefore($pager);
@@ -204,14 +203,14 @@
     /**
      * Na starcie ukrywam artykuły już wcześniej ukryte.
      */
-    view.hideMany($articles.filter(function() {
-        return hiddenIds.has($(this).attr('data-id'));
+    itemsViewFunctions.hideMany($items.filter(function() {
+        return hiddenItemsStorage.has($(this).attr('data-id'));
     }));
 
 
     // sortowanie wg widoczności i doklejenie paginatora przed pierwszym niewidocznym
     if (settings.visibleFirst && settings.hiddenOpacity > 0) {
-        $articles.sortElements(function(a, b) {
+        $items.sortElements(function(a, b) {
             return $(a).hasClass('dnwpHidden') ? 1 : -1;
         });
 
