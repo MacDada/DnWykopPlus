@@ -6,13 +6,31 @@
         // przez ile dni pamiętać ukrycia?
         gcDays: 7,
 
+//        // czy automatycznie ukrywać artykuł, który został właśnie otworzony?
+//        hideWhenOpened: false,
+
+        // czy wywalić oryginalny przycisk ukrywania w poczekalni?
+        removeOriginalHideButton: false,
+
         // przezroczystość ukrytych artykułów
         // – ustawienie na „0” ukrywa artykuły zupełnie
         // poprawne wartości to [0..1]
-        hiddenOpacity: 0,
+        hiddenOpacity: 0.2,
 
         // czy sortować znaleziska tak, żeby widoczne były pierwsze?
-        visibleFirst: true
+        visibleFirst: true,
+
+        // co robić z Wykop Poleca?
+        // „null”:     mają być traktowane jak zwykłe znaleziska
+        // „'hide'”:   domyślnie mają być ukrywane
+        // „'remove'”: mają być w ogóle usuwane z widoku
+        wykopPoleca: null,
+
+        // co robić ze sponsorowanymi? j.w.
+        sponsorowane: null,
+
+        // co robić z linkami z Wykop Marketu? j.w.
+        wykopMarket: null
     }, settings);
 
 
@@ -41,6 +59,9 @@
     };
 
 
+    /**
+     * Pokazywanie/ukrywanie artykułów w widoku
+     */
     var itemsViewFunctions = {
         hideOne: function($el) {
             if (0 === settings.hiddenOpacity) {
@@ -51,9 +72,13 @@
             }
 
             $el.addClass('dnwpHidden');
+
+            $el.find('.dnwpShowHideItem').text('pokaż');
         },
         showOne: function($el) {
             $el.fadeTo('fast', 1).removeClass('dnwpHidden');
+
+            $el.find('.dnwpShowHideItem').text('ukryj');
         },
         hideMany: function($el) {
             if (0 === settings.hiddenOpacity) {
@@ -64,6 +89,8 @@
             }
 
             $el.addClass('dnwpHidden');
+
+            $el.find('.dnwpShowHideItem').text('pokaż');
         },
         showMany: function($el) {
             $el.fadeTo('fast', 1).removeClass('dnwpHidden');
@@ -71,6 +98,8 @@
             if (0 === settings.hiddenOpacity) {
                 lazyLoad();
             }
+
+            $el.find('.dnwpShowHideItem').text('ukryj');
         }
     };
 
@@ -80,29 +109,48 @@
      * Klucze zaczynają się prefixem, żeby uniknąć kolizji oraz ułatwić wyszukiwanie.
      * W kluczu trzymane jest ID znaleziska, w wartości data ukrycia.
      */
-    var hiddenItemsStorage = (function(storage) {
-        var prefix = "dnwpHiddenItem_";
+    var hiddenItemsStorage = (function(storage, prefix) {
+        var countKey = "_" + prefix + "_count";
 
         var hiddenItemsStorage = {
             has: function(id) {
+                if (!id) {
+                    return false;
+                }
+
                 return storage[prefix + id] ? true : false;
             },
             add: function(id) {
-                if (!this.has(id)) {
-                    storage["dnwpHiddenItemsCount"]++;
+                if (!id) {
+                    return false;
                 }
+
+                if (!this.has(id)) {
+                    storage[countKey]++;
+                }
+
                 storage[prefix + id] = (new Date()).toJSON();
+
+                return true;
             },
             remove: function(id) {
+                if (!id) {
+                    return false;
+                }
+
                 if (this.has(id)) {
                     storage.removeItem(prefix + id);
-                    storage["dnwpHiddenItemsCount"]--;
+                    storage[countKey]--;
+
+                    return true;
                 }
+
+                return false;
             },
             removeOlderThan: function(date) {
                 console.log('dnwp removeOlderThan', date);
 
-                var beforeCount = storage["dnwpHiddenItemsCount"];
+                var beforeCount = storage[countKey];
 
                 // deleting all storage items that are older then "date" arg.
                 // takes only dnwp keys into account (filters thx to the prefix)
@@ -113,21 +161,24 @@
                         console.log("dnwp removing ", key);
 
                         storage.removeItem(key);
-                        storage["dnwpHiddenItemsCount"]--;
+                        storage[countKey]--;
                     }
                 }
 
-                return beforeCount - storage["dnwpHiddenItemsCount"];
+                return beforeCount - storage[countKey];
             },
             count: function() {
-                return window.parseInt(storage["dnwpHiddenItemsCount"]);
+                return window.parseInt(storage[countKey]);
+            },
+            clear: function() {
+                return this.removeOlderThan(new Date());
             }
         }
 
         // gc: automatically delete when more than: days * 10 pages * 54 articles per page
-        if (!storage["dnwpHiddenItemsCount"]) {
-            storage["dnwpHiddenItemsCount"] = 0;
-        } else if (storage["dnwpHiddenItemsCount"] > settings.gcDays * 540) {
+        if (!storage[countKey]) {
+            storage[countKey] = 0;
+        } else if (storage[countKey] > settings.gcDays * 540) {
             console.log('dnwp gc: removed ' + hiddenItemsStorage.removeOlderThan((function() {
                 var date = new Date();
                 date.setDate(date.getDate() - settings.gcDays);
@@ -136,33 +187,57 @@
         }
 
         return hiddenItemsStorage;
-    }(window.localStorage));
+    }(window.localStorage, 'dnwpHiddenItem_'));
 
 
     /**
      * Wyszukuję znaleziska
      */
-    var $items = $("article.entry[data-id]");
+    var $items = $('article.entry');
+
+
+    /**
+     * Funkcja wyciągająca napis identyfikujący artykuł, żeby móc nim zarządzać.
+     */
+    var identifyItem = function($item) {
+        if ($item.attr('data-id')) {
+            return $item.attr('data-id');
+        }
+
+        if ($item.hasClass('sponsoredby')) {
+            return $item.find('a.diggbox').attr('href').replace(/.*(paylink.*)/, "$1");
+        }
+
+        if ($item.hasClass('newmarket')) {
+            // wyciągam ID regexpem z linka do znaleziska
+            return $item.find('.diggbox a').attr('href').replace(/.*link\/(\d+)\/.*/, "$1");
+        }
+
+        console.error('identifyItem() nie zidentyfikował artykułu!', $item);
+
+        return null;
+    };
 
 
     /**
      * Tworzę przyciski ukrywania artykułu
      */
     $('<a href="#" class="dnwpShowHideItem">ukryj</a>')
-        .insertAfter("header h2 a.link", $items)
+        .insertAfter($items.find('header h2 a.link'))
         .click(function(e) {
             e.preventDefault();
-            var $this = $(this);
-            var $item = $this.parents('article.entry');
 
-            if ($this.hasClass('show')) {
+            var $button = $(this);
+            var $item = $button.parents('article.entry');
+
+            if ($item.hasClass('dnwpHidden')) {
+                // pokazujemy artykuł
                 itemsViewFunctions.showOne($item);
-                hiddenItemsStorage.remove($item.attr('data-id'));
-                $this.removeClass('show');
+                hiddenItemsStorage.remove(identifyItem($item));
             } else {
+                // ukrywamy artykuł
                 itemsViewFunctions.hideOne($item);
-                hiddenItemsStorage.add($item.attr('data-id'));
-                $this.addClass('show');
+                hiddenItemsStorage.add(identifyItem($item));
             }
         });
 
@@ -201,14 +276,43 @@
 
 
     /**
-     * Na starcie ukrywam artykuły już wcześniej ukryte.
+     * Na starcie ukrywam artykuły ukryte w poprzednich requestach do strony
      */
     itemsViewFunctions.hideMany($items.filter(function() {
-        return hiddenItemsStorage.has($(this).attr('data-id'));
+        return hiddenItemsStorage.has(identifyItem($(this)));
     }));
 
 
-    // sortowanie wg widoczności i doklejenie paginatora przed pierwszym niewidocznym
+    /**
+     * Ukrywanie/usuwanie znalezisk z Wykop Poleca, Wykop Marketu i sponsorowanych
+     */
+    $.each({
+        wykopPoleca:  ':has(.content a[href="http://www.wykop.pl/reklama/"])',
+        wykopMarket:  '.newmarket',
+        sponsorowane: '.sponsoredby'
+    }, function(name, filter) {
+        var setting = settings[name];
+        if (setting) {
+            var $itemsFiltered = $items.filter(filter);
+
+            switch (setting) {
+                case 'hide':
+                    itemsViewFunctions.hideMany($itemsFiltered);
+                    break;
+
+                case 'remove':
+                    $itemsFiltered.hide();
+                    lazyLoad();
+                    break;
+            }
+        }
+    });
+
+
+    /**
+     * Sortowanie wg widoczności
+     * i doklejenie paginatora przed pierwszym niewidocznym
+     */
     if (settings.visibleFirst && settings.hiddenOpacity > 0) {
         $items.sortElements(function(a, b) {
             return $(a).hasClass('dnwpHidden') ? 1 : -1;
@@ -223,6 +327,14 @@
         lazyLoad();
     }
 
+
+    /**
+     * Ukrywanie wykopowego przycisku ukrywania w poczeklani
+     */
+    if (settings.removeOriginalHideButton) {
+        $items.find('a.closelist').remove();
+    }
+
 })(window, $, {
-    hiddenOpacity: 0.2
+    removeOriginalHideButton: true
 });
