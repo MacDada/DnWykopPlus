@@ -6,8 +6,8 @@
         // przez ile dni pamiętać ukrycia?
         gcDays: 7,
 
-//        // czy automatycznie ukrywać artykuł, który został właśnie otworzony?
-//        hideWhenOpened: false,
+        // czy automatycznie ukrywać artykuł, który został właśnie otworzony?
+        hideWhenOpened: false,
 
         // czy wywalić oryginalny przycisk ukrywania w poczekalni?
         removeOriginalHideButton: false,
@@ -335,6 +335,20 @@
         $items.find('a.closelist').remove();
     }
 
+
+    /**
+     * Ukrywanie artykułów po ich otwarciu.
+     * Przechwytuje kliknięcia na tytuły i przycisk komentarzy.
+     */
+    if (settings.hideWhenOpened) {
+        $items.find('.content header').find('h2 a:not(.dnwpShowHideItem), p a:has(.comments)').click(function() {
+            var $item = $(this).parents('article.entry');
+            itemsViewFunctions.hideOne($item);
+            hiddenItemsStorage.add(identifyItem($item));
+        });
+    }
+
 })(window, $, {
-    removeOriginalHideButton: true
+    removeOriginalHideButton: true,
+    hideWhenOpened: true
 });
