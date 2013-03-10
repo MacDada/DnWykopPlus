@@ -346,11 +346,14 @@
      * Przechwytuje kliknięcia na tytuły i przycisk komentarzy.
      */
     if (settings.hideWhenOpened) {
-        $items.find('.content header').find('h2 a:not(.dnwpShowHideItem), p a:has(.comments)').click(function() {
-            var $item = $(this).parents('article.entry');
-            itemsViewFunctions.hideOne($item);
-            hiddenItemsStorage.add(identifyItem($item));
-        });
+        $items
+            .find('.content header')
+            .find('h2 a:not(.dnwpShowHideItem), p a:has(.comments)')
+            .click(function() {
+                var $item = $(this).parents('article.entry');
+                itemsViewFunctions.hideOne($item);
+                hiddenItemsStorage.add(identifyItem($item));
+            });
     }
 
 })(window, $, {

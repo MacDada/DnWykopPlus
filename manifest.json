@@ -1,8 +1,14 @@
 {
 	"name": "DnWykopPlus",
-	"version": "0.4",
+	"version": "0.5",
 	"manifest_version": 2,
-	"description": "Dodatki do Wykopu",
+	"description": "Dodatki do serwisu Wykop.pl",
+    "homepage_url": "https://github.com/MacDada",
+    "icons": {
+        "16": "icon16.png",
+        "48": "icon48.png",
+        "128": "icon128.png"
+    },
 	"content_scripts": [
 		{
 			"matches": [
