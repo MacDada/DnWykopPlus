@@ -104,90 +104,95 @@
     };
 
 
-    /**
-     * Obiekt trzymający info o ukrytych artykułach
-     * Klucze zaczynają się prefixem, żeby uniknąć kolizji oraz ułatwić wyszukiwanie.
-     * W kluczu trzymane jest ID znaleziska, w wartości data ukrycia.
-     */
-    var hiddenItemsStorage = (function(storage, prefix) {
+    var ItemsStorage = function(storageDriver, prefix) {
         var countKey = "_" + prefix + "_count";
 
-        var hiddenItemsStorage = {
-            has: function(id) {
-                if (!id) {
-                    return false;
-                }
+        this.has = function(id) {
+            if (!id) {
+                return false;
+            }
 
-                return storage[prefix + id] ? true : false;
-            },
-            add: function(id) {
-                if (!id) {
-                    return false;
-                }
+            return storageDriver[prefix + id] ? true : false;
+        };
 
-                if (!this.has(id)) {
-                    storage[countKey]++;
-                }
+        this.add = function(id) {
+            if (!id) {
+                return false;
+            }
 
-                storage[prefix + id] = (new Date()).toJSON();
+            if (!this.has(id)) {
+                storageDriver[countKey]++;
+            }
+
+            storageDriver[prefix + id] = (new Date()).toJSON();
+
+            return true;
+        };
+
+        this.remove = function(id) {
+            if (!id) {
+                return false;
+            }
+
+            if (this.has(id)) {
+                storageDriver.removeItem(prefix + id);
+                storageDriver[countKey]--;
 
                 return true;
-            },
-            remove: function(id) {
-                if (!id) {
-                    return false;
-                }
-
-                if (this.has(id)) {
-                    storage.removeItem(prefix + id);
-                    storage[countKey]--;
-
-                    return true;
-                }
-
-                return false;
-            },
-            removeOlderThan: function(date) {
-                console.log('dnwp removeOlderThan', date);
-
-                var beforeCount = storage[countKey];
-
-                // deleting all storage items that are older then "date" arg.
-                // takes only dnwp keys into account (filters thx to the prefix)
-                for (var key in storage) {
-                    if (   0 === key.indexOf(prefix)     // has the prefix
-                        && new Date(storage[key]) < date // is old enough
-                    ) {
-                        console.log("dnwp removing ", key);
-
-                        storage.removeItem(key);
-                        storage[countKey]--;
-                    }
-                }
-
-                return beforeCount - storage[countKey];
-            },
-            count: function() {
-                return window.parseInt(storage[countKey]);
-            },
-            clear: function() {
-                return this.removeOlderThan(new Date());
             }
-        }
+
+            return false;
+        };
+
+        this.removeOlderThan = function(date) {
+            console.log('dnwp removeOlderThan', date);
+
+            var beforeCount = storageDriver[countKey];
+
+            // deleting all storage items that are older then "date" arg.
+            // takes only dnwp keys into account (filters thx to the prefix)
+            for (var key in storageDriver) {
+                if (   0 === key.indexOf(prefix)     // has the prefix
+                    && new Date(storageDriver[key]) < date // is old enough
+                ) {
+                    console.log("dnwp removing ", key);
+
+                    storageDriver.removeItem(key);
+                    storageDriver[countKey]--;
+                }
+            }
+
+            return beforeCount - storageDriver[countKey];
+        };
+
+        this.count = function() {
+            return window.parseInt(storageDriver[countKey]);
+        };
+
+        this.clear = function() {
+            return this.removeOlderThan(new Date());
+        };
+
 
         // gc: automatically delete when more than: days * 10 pages * 54 articles per page
-        if (!storage[countKey]) {
-            storage[countKey] = 0;
-        } else if (storage[countKey] > settings.gcDays * 540) {
-            console.log('dnwp gc: removed ' + hiddenItemsStorage.removeOlderThan((function() {
+        if (!storageDriver[countKey]) {
+            storageDriver[countKey] = 0;
+        } else if (storageDriver[countKey] > settings.gcDays * 540) {
+            console.log('dnwp gc: removed ' + this.removeOlderThan((function() {
                 var date = new Date();
                 date.setDate(date.getDate() - settings.gcDays);
                 return date;
             })()) + 'items');
         }
+    }; // eo Storage
 
-        return hiddenItemsStorage;
-    }(window.localStorage, 'dnwpHiddenItem_'));
+
+    /**
+     * Obiekt trzymający info o ukrytych artykułach
+     * Klucze zaczynają się prefixem, żeby uniknąć kolizji oraz ułatwić wyszukiwanie.
+     * W kluczu trzymane jest ID znaleziska, w wartości data ukrycia.
+     */
+    var hiddenItemsStorage = new ItemsStorage(window.localStorage, 'dnwpHiddenItem_');
 
 
     /**
