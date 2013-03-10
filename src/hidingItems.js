@@ -356,7 +356,4 @@
             });
     }
 
-})(window, $, {
-    removeOriginalHideButton: true,
-    hideWhenOpened: true
-});
+})(window, $, {});
